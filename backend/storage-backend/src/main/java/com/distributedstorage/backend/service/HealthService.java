@@ -6,6 +6,6 @@ import com.distributedstorage.backend.dto.HealthResponseDTO;
 @Service
 public class HealthService {
     public HealthResponseDTO getHealthStatus() {
-        return new HealthResponseDTO("Distributed File Storage Backend Running", "SUCCESS");
+        return new HealthResponseDTO("Distributed File Storage Backend Running", "ACTIVE");
     }
 }
