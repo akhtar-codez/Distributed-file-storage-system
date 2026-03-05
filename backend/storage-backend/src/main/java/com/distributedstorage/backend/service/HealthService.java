@@ -1,10 +1,11 @@
 package com.distributedstorage.backend.service;
 
 import org.springframework.stereotype.Service;
+import com.distributedstorage.backend.dto.HealthResponseDTO;
 
 @Service
 public class HealthService {
-    public String getHealthStatus(){
-        return "Distributed File Storage Backend Running";
+    public HealthResponseDTO getHealthStatus() {
+        return new HealthResponseDTO("Distributed File Storage Backend Running", "SUCCESS");
     }
 }
