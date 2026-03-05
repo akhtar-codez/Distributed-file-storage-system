@@ -1,21 +1,15 @@
+import java.io.IOException;
+
 public class TestStorage {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
 
-        StorageService storageService = new StorageService();
+        StorageService storage = new StorageService();
 
-        storageService.initializeStorage();
+        // Upload a file
+        storage.uploadFile("sample.txt");
 
-        storageService.saveFileInChunks(
-        "hello.txt",
-        "Hello Distributed Storage System! This project simulates Google Drive storage."
-        );
-
-        String result = storageService.readFile("hello.txt");
-
-        System.out.println("Reconstructed File:");
-        System.out.println(result);
-
+        // Download file
+        storage.downloadFile("sample.txt", "./");
     }
-
 }
