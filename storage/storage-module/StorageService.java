@@ -1,50 +1,38 @@
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-
 public class StorageService {
 
-    private static final String STORAGE_DIR = "storage/";
+    private final String BASE_PATH = "storage/node1";
 
     public StorageService() {
-        File dir = new File(STORAGE_DIR);
-        if (!dir.exists()) {
-            dir.mkdir();
+    java.io.File folder = new java.io.File(BASE_PATH);
+
+        if (!folder.exists()) {
+            folder.mkdirs();
+            System.out.println("Storage folder created at: " + BASE_PATH);
+        } else {
+            System.out.println("Storage folder already exists.");
         }
     }
+    public void saveFile(String sourcePath, String fileName) {
 
-    // Upload file
-    public void uploadFile(String sourcePath) throws IOException {
+        try {
+            java.io.FileInputStream input = new java.io.FileInputStream(sourcePath);
+            java.io.FileOutputStream output =
+                    new java.io.FileOutputStream(BASE_PATH + "/" + fileName);
 
-        File sourceFile = new File(sourcePath);
+            byte[] buffer = new byte[1024];
+            int bytesRead;
 
-        if (!sourceFile.exists()) {
-            System.out.println("File not found.");
-            return;
+            while ((bytesRead = input.read(buffer)) != -1) {
+                output.write(buffer, 0, bytesRead);
+            }
+
+            input.close();
+            output.close();
+
+            System.out.println("File saved successfully to " + BASE_PATH);
+
+        } catch (Exception e) {
+            System.out.println("Error saving file: " + e.getMessage());
         }
-
-        Path destination = Path.of(STORAGE_DIR + sourceFile.getName());
-
-        Files.copy(sourceFile.toPath(), destination, StandardCopyOption.REPLACE_EXISTING);
-
-        System.out.println("File uploaded successfully: " + sourceFile.getName());
-    }
-
-    // Download file
-    public void downloadFile(String fileName, String destinationPath) throws IOException {
-
-        Path source = Path.of(STORAGE_DIR + fileName);
-        Path destination = Path.of(destinationPath + fileName);
-
-        if (!Files.exists(source)) {
-            System.out.println("File does not exist in storage.");
-            return;
-        }
-
-        Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
-
-        System.out.println("File downloaded successfully.");
     }
 }
