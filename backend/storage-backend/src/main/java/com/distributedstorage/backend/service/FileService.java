@@ -39,4 +39,7 @@ public class FileService {
     public List<FileMetadata> getAllFiles(){
     return fmdRepository.findAll();
 }
+public FileMetadata getFileById(Long id){
+    return fmdRepository.findById(id).orElse(null);
+}
 }

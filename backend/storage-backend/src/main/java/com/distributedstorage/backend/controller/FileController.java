@@ -67,4 +67,22 @@ public class FileController {
                 response
         );
     }
+    @GetMapping("/{id}")
+public ApiResponseDTO<FileUploadResponseDTO> getFileById(@PathVariable Long id){
+
+    FileMetadata file = fileService.getFileById(id);
+
+    FileUploadResponseDTO response =
+            new FileUploadResponseDTO(
+                    file.getId(),
+                    file.getFileName(),
+                    file.getFileSize()
+            );
+
+    return new ApiResponseDTO<>(
+            "SUCCESS",
+            "File fetched successfully",
+            response
+    );
+}
 }
