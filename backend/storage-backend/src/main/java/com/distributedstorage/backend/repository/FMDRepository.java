@@ -6,5 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface FMDRepository extends JpaRepository<FileMetadata, Long>{
-    
+
 }

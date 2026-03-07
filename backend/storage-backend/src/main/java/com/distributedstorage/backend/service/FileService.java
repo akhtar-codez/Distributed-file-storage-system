@@ -1,5 +1,6 @@
-package com.distributedstorage.backend.service;
 
+package com.distributedstorage.backend.service;
+import java.util.List;
 import com.distributedstorage.backend.model.FileMetadata;
 import com.distributedstorage.backend.model.User;
 import com.distributedstorage.backend.repository.FMDRepository;
@@ -35,4 +36,7 @@ public class FileService {
 
         return fmdRepository.save(fileMetadata);
     }
+    public List<FileMetadata> getAllFiles(){
+    return fmdRepository.findAll();
+}
 }
