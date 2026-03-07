@@ -15,6 +15,10 @@ public class FileMetadata {
     private Long fileSize;
     private LocalDateTime uploadedAt;
 
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+
     // REQUIRED by JPA
     public FileMetadata() {
     }
@@ -44,5 +48,14 @@ public class FileMetadata {
 
     public LocalDateTime getUploadedAt() {
         return uploadedAt;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    // ADD THIS METHOD
+    public void setUser(User user) {
+        this.user = user;
     }
 }
