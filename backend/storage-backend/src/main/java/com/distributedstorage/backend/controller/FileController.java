@@ -46,7 +46,7 @@ public class FileController {
         );
     }
 
-    // NEW API → Get all files
+    // Get all files
     @GetMapping
     public ApiResponseDTO<List<FileUploadResponseDTO>> getAllFiles() {
 
@@ -67,22 +67,37 @@ public class FileController {
                 response
         );
     }
+
+    // Get file by ID
     @GetMapping("/{id}")
-public ApiResponseDTO<FileUploadResponseDTO> getFileById(@PathVariable Long id){
+    public ApiResponseDTO<FileUploadResponseDTO> getFileById(@PathVariable Long id){
 
-    FileMetadata file = fileService.getFileById(id);
+        FileMetadata file = fileService.getFileById(id);
 
-    FileUploadResponseDTO response =
-            new FileUploadResponseDTO(
-                    file.getId(),
-                    file.getFileName(),
-                    file.getFileSize()
-            );
+        FileUploadResponseDTO response =
+                new FileUploadResponseDTO(
+                        file.getId(),
+                        file.getFileName(),
+                        file.getFileSize()
+                );
 
-    return new ApiResponseDTO<>(
-            "SUCCESS",
-            "File fetched successfully",
-            response
-    );
-}
+        return new ApiResponseDTO<>(
+                "SUCCESS",
+                "File fetched successfully",
+                response
+        );
+    }
+
+    // DELETE file metadata
+    @DeleteMapping("/{id}")
+    public ApiResponseDTO<String> deleteFile(@PathVariable Long id){
+
+        fileService.deleteFile(id);
+
+        return new ApiResponseDTO<>(
+                "SUCCESS",
+                "File deleted successfully",
+                null
+        );
+    }
 }

@@ -42,4 +42,7 @@ public class FileService {
 public FileMetadata getFileById(Long id){
     return fmdRepository.findById(id).orElse(null);
 }
+public void deleteFile(Long id){
+    fmdRepository.deleteById(id);
+}
 }
