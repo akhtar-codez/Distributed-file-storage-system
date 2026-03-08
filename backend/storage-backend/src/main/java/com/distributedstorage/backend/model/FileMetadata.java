@@ -1,5 +1,6 @@
 package com.distributedstorage.backend.model;
-
+import java.util.List;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -58,4 +59,6 @@ public class FileMetadata {
     public void setUser(User user) {
         this.user = user;
     }
+    @OneToMany(mappedBy = "file")
+private List<Chunk> chunks;
 }
