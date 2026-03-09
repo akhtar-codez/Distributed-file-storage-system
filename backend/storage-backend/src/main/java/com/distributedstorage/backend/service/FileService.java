@@ -20,10 +20,11 @@ public class FileService {
         this.userRepository = userRepository;
     }
 
-    public FileMetadata saveMetadata(String fileName, String filePath, Long fileSize) {
+   public FileMetadata saveMetadata(String fileName, String filePath, Long fileSize, Long userId) {
 
         // TEMP: always attach file to user with id = 1
-        User user = userRepository.findById(1L).orElse(null);
+       User user = userRepository.findById(userId)
+        .orElseThrow(() -> new RuntimeException("User not found"));
 
         FileMetadata fileMetadata = new FileMetadata(
                 fileName,
@@ -40,9 +41,11 @@ public class FileService {
     return fmdRepository.findAll();
 }
 public FileMetadata getFileById(Long id){
-    return fmdRepository.findById(id).orElse(null);
+    return fmdRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("File not found"));
 }
 public void deleteFile(Long id){
-    fmdRepository.deleteById(id);
+    FileMetadata file = getFileById(id);
+    fmdRepository.delete(file);
 }
 }
