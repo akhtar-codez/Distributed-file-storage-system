@@ -21,4 +21,8 @@ public class HealthController {
 
         return new ApiResponseDTO<>("SUCCESS", "Health Check Successful", data);
     }
+    @GetMapping("/test-error")
+    public String testError() {
+    throw new RuntimeException("Test exception");
+    }
 }
