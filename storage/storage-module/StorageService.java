@@ -1,11 +1,14 @@
 import java.io.*;
+import java.util.List;
 
 public class StorageService {
 
     private static final String STORAGE_PATH = "storage/";
     private static final int CHUNK_SIZE = 1024; // 1KB chunk size
 
-    public static void storeFile(String filePath) {
+    MetadataManager metadataManager = new MetadataManager();
+
+    public void storeFile(String filePath) {
         try {
             File file = new File(filePath);
             FileInputStream fis = new FileInputStream(file);
@@ -17,6 +20,7 @@ public class StorageService {
             while ((bytesRead = fis.read(buffer)) != -1) {
 
                 String node = getNode(chunkNumber);
+                metadataManager.addChunk(file.getName(), node);
                 String chunkFileName = file.getName() + "_chunk_" + chunkNumber;
 
                 FileOutputStream fos = new FileOutputStream(
@@ -43,14 +47,19 @@ public class StorageService {
 
         FileOutputStream fos = new FileOutputStream(outputFile);
 
-        for (int i = 1; i <= 3; i++) {
+        List<String> nodes = metadataManager.getChunks(fileName);
 
-            String nodePath = STORAGE_PATH + "node" + i + "/" + fileName + "_chunk_" + i;
+        for (int i = 0; i < nodes.size(); i++) {
 
-            File chunkFile = new File(nodePath);
+            String node = nodes.get(i);
+
+            String chunkPath = "storage/storage-module/storage/" +
+                    node + "/" + fileName + "_chunk_" + (i + 1);
+
+            File chunkFile = new File(chunkPath);   // FIXED
 
             if (!chunkFile.exists()) {
-                System.out.println("Chunk missing from node" + i);
+                System.out.println("Chunk missing from " + node);
                 continue;
             }
 
@@ -65,7 +74,7 @@ public class StorageService {
 
             fis.close();
 
-            System.out.println("Retrieved chunk from node" + i);
+            System.out.println("Retrieved chunk from " + node);
         }
 
         fos.close();
