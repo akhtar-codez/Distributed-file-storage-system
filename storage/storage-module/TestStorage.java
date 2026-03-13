@@ -13,35 +13,58 @@ public class TestStorage {
 
     public static void main(String[] args) throws IOException {
 
+        NodeManager.initializeNodes();
+
         StorageService storage = new StorageService();
+        StorageService storageService = new StorageService();
 
         Scanner scanner = new Scanner(System.in);
 
-        System.out.println("Distributed File Storage System");
-        System.out.println("1. Upload File");
-        System.out.println("2. Download File");
-        System.out.print("Choose option: ");
+        while (true) {
 
-        int choice = scanner.nextInt();
-        scanner.nextLine(); // consume newline
+            System.out.println("\nDistributed File Storage System");
+            System.out.println("1. Upload File");
+            System.out.println("2. Download File");
+            System.out.println("3. Show System Status");
+            System.out.println("4. Debug Metadata");
+            System.out.println("5. Exit");
 
-        System.out.print("Enter file name: ");
-        String fileName = scanner.nextLine();
+            System.out.print("Choose option: ");
+            int choice = scanner.nextInt();
 
-        if (choice == 1) {
+            if (choice == 1) {
 
-            storage.storeFile(fileName);
+                System.out.print("Enter file path: ");
+                String fileName = scanner.next();
 
-        } else if (choice == 2) {
+                storage.storeFile(fileName);
 
-            storage.downloadFile(fileName);
+            } else if (choice == 2) {
 
-        } else {
+                System.out.print("Enter file name: ");
+                String fileName = scanner.next();
 
-            System.out.println("Invalid option");
+                storage.downloadFile(fileName);
 
+            } else if (choice == 3) {
+
+                SystemMonitor.showSystemStatus();
+
+            } else if (choice == 4) {
+
+                storage.showMetadata();
+
+            } else if (choice == 5) {
+
+                System.out.println("Exiting system...");
+                break;
+
+            } else {
+
+                System.out.println("Invalid option");
+
+            }
         }
-
         scanner.close();
     }
 }
