@@ -1,15 +1,42 @@
 import java.io.*;
 import java.util.List;
 
+/*
+ * StorageService
+ * --------------
+ * This class handles file storage and retrieval in the
+ * distributed storage system.
+ *
+ * Features:
+ * - Splits files into chunks
+ * - Distributes chunks across storage nodes
+ * - Uses MetadataManager to track chunk locations
+ * - Reconstructs files during download
+ */
+
 public class StorageService {
 
+    // Base storage directory
     private static final String STORAGE_PATH = "storage/";
-    private static final int CHUNK_SIZE = 1024; // 1KB chunk size
 
+    // Size of each chunk (1KB)
+    private static final int CHUNK_SIZE = 1024;
+
+    // Metadata manager instance
     MetadataManager metadataManager = new MetadataManager();
 
+
+    /*
+     * storeFile()
+     * -----------
+     * Reads the input file and splits it into chunks.
+     * Each chunk is stored in a node selected by NodeManager.
+     */
+
     public void storeFile(String filePath) {
+
         try {
+
             File file = new File(filePath);
             FileInputStream fis = new FileInputStream(file);
 
@@ -19,15 +46,21 @@ public class StorageService {
 
             while ((bytesRead = fis.read(buffer)) != -1) {
 
-                String node = getNode(chunkNumber);
-                metadataManager.addChunk(file.getName(), node);
+                // Select node dynamically
+                String node = NodeManager.getNodeForChunk(chunkNumber);
+
+                // Create chunk file name
                 String chunkFileName = file.getName() + "_chunk_" + chunkNumber;
 
+                // Store chunk
                 FileOutputStream fos = new FileOutputStream(
                         STORAGE_PATH + node + "/" + chunkFileName);
 
                 fos.write(buffer, 0, bytesRead);
                 fos.close();
+
+                // Update metadata
+                metadataManager.addChunk(file.getName(), node);
 
                 System.out.println("Stored " + chunkFileName + " in " + node);
 
@@ -36,10 +69,21 @@ public class StorageService {
 
             fis.close();
 
+            System.out.println("File stored successfully.");
+
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
+
+
+    /*
+     * downloadFile()
+     * --------------
+     * Reconstructs the original file by retrieving
+     * its chunks from storage nodes using metadata.
+     */
 
     public void downloadFile(String fileName) throws IOException {
 
@@ -47,49 +91,45 @@ public class StorageService {
 
         FileOutputStream fos = new FileOutputStream(outputFile);
 
+        // Get nodes where chunks are stored
         List<String> nodes = metadataManager.getChunks(fileName);
 
-        for (int i = 0; i < nodes.size(); i++) {
+        int chunkNumber = 1;
 
-            String node = nodes.get(i);
+        for (String node : nodes) {
 
-            String chunkPath = "storage/storage-module/storage/" +
-                    node + "/" + fileName + "_chunk_" + (i + 1);
+            // Construct chunk path
+            String chunkPath =
+                    STORAGE_PATH + node + "/" + fileName + "_chunk_" + chunkNumber;
 
-            File chunkFile = new File(chunkPath);   // FIXED
+            File chunkFile = new File(chunkPath);
 
             if (!chunkFile.exists()) {
+
                 System.out.println("Chunk missing from " + node);
+                chunkNumber++;
                 continue;
             }
 
             FileInputStream fis = new FileInputStream(chunkFile);
 
-            byte[] buffer = new byte[1024];
+            byte[] buffer = new byte[CHUNK_SIZE];
             int bytesRead;
 
             while ((bytesRead = fis.read(buffer)) != -1) {
+
                 fos.write(buffer, 0, bytesRead);
             }
 
             fis.close();
 
-            System.out.println("Retrieved chunk from " + node);
+            System.out.println("Retrieved chunk_" + chunkNumber + " from " + node);
+
+            chunkNumber++;
         }
 
         fos.close();
 
         System.out.println("File reconstructed successfully as: " + outputFile);
-    }
-
-    private static String getNode(int chunkNumber) {
-
-        if (chunkNumber % 3 == 1) {
-            return "node1";
-        } else if (chunkNumber % 3 == 2) {
-            return "node2";
-        } else {
-            return "node3";
-        }
     }
 }
