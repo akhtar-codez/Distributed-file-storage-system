@@ -23,11 +23,12 @@ public class TestStorage {
         while (true) {
 
             System.out.println("\nDistributed File Storage System");
-            System.out.println("1. Upload File");
-            System.out.println("2. Download File");
-            System.out.println("3. Show System Status");
-            System.out.println("4. Debug Metadata");
-            System.out.println("5. Exit");
+            System.out.println("1 Upload File");
+            System.out.println("2 Download File");
+            System.out.println("3 Show System Status");
+            System.out.println("4 Debug Metadata");
+            System.out.println("5 Simulate Node Failure");
+            System.out.println("6 Exit");
 
             System.out.print("Choose option: ");
             int choice = scanner.nextInt();
@@ -54,7 +55,14 @@ public class TestStorage {
 
                 storage.showMetadata();
 
-            } else if (choice == 5) {
+            }else if (choice == 5) {
+
+                System.out.print("Enter node to fail (node1/node2/node3): ");
+                String node = scanner.next();
+
+                NodeManager.simulateNodeFailure(node);
+
+            }else if (choice == 6) {
 
                 System.out.println("Exiting system...");
                 break;

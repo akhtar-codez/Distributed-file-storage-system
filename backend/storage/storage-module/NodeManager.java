@@ -69,4 +69,32 @@ public class NodeManager {
 
         return nodes;
     }
+
+    /*
+    * Simulates node failure by deleting the node directory.
+    */
+    public static void simulateNodeFailure(String nodeName) {
+
+        File nodeDir = new File(STORAGE_PATH + nodeName);
+
+        if (!nodeDir.exists()) {
+
+            System.out.println("Node does not exist.");
+            return;
+        }
+
+        File[] files = nodeDir.listFiles();
+
+        // Delete all files inside the node
+        if (files != null) {
+            for (File file : files) {
+                file.delete();
+            }
+        }
+
+        // Delete the node folder
+        nodeDir.delete();
+
+        System.out.println("Node failure simulated: " + nodeName);
+    }
 }
