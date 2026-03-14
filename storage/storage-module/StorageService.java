@@ -4,12 +4,12 @@ import java.util.List;
 /*
  * StorageService
  * --------------
- * This class handles file storage and retrieval in the
- * distributed storage system.
+ * Handles file storage and retrieval in the distributed storage system.
  *
  * Features:
  * - Splits files into chunks
  * - Distributes chunks across storage nodes
+ * - Replicates chunks for fault tolerance
  * - Uses MetadataManager to track chunk locations
  * - Reconstructs files during download
  */
@@ -22,17 +22,18 @@ public class StorageService {
     // Size of each chunk (1KB)
     private static final int CHUNK_SIZE = 1024;
 
+    // Number of replicas for each chunk
+    private static final int REPLICATION_FACTOR = 2;
+
     // Metadata manager instance
     MetadataManager metadataManager = new MetadataManager();
-
 
     /*
      * storeFile()
      * -----------
-     * Reads the input file and splits it into chunks.
-     * Each chunk is stored in a node selected by NodeManager.
+     * Reads the input file, splits it into chunks,
+     * and stores those chunks across multiple nodes.
      */
-
     public void storeFile(String filePath) {
 
         try {
@@ -40,29 +41,42 @@ public class StorageService {
             File file = new File(filePath);
             FileInputStream fis = new FileInputStream(file);
 
+            // Get available storage nodes
+            List<String> nodes = NodeManager.getAvailableNodes();
+
             byte[] buffer = new byte[CHUNK_SIZE];
             int bytesRead;
             int chunkNumber = 1;
 
             while ((bytesRead = fis.read(buffer)) != -1) {
 
-                // Select node dynamically
-                String node = NodeManager.getNodeForChunk(chunkNumber);
-
                 // Create chunk file name
                 String chunkFileName = file.getName() + "_chunk_" + chunkNumber;
 
-                // Store chunk
-                FileOutputStream fos = new FileOutputStream(
-                        STORAGE_PATH + node + "/" + chunkFileName);
+                /*
+                 * Store chunk replicas across nodes
+                 * Example:
+                 * chunk1 -> node1, node2
+                 * chunk2 -> node2, node3
+                 */
+                for (int r = 0; r < REPLICATION_FACTOR; r++) {
 
-                fos.write(buffer, 0, bytesRead);
-                fos.close();
+                    // Select node using round-robin distribution
+                    String node = nodes.get((chunkNumber + r) % nodes.size());
 
-                // Update metadata
-                metadataManager.addChunk(file.getName(), node);
+                    // Create output stream to store chunk
+                    FileOutputStream fos = new FileOutputStream(
+                            STORAGE_PATH + node + "/" + chunkFileName);
 
-                System.out.println("Stored " + chunkFileName + " in " + node);
+                    // Write chunk data
+                    fos.write(buffer, 0, bytesRead);
+                    fos.close();
+
+                    // Update metadata
+                    metadataManager.addChunk(file.getName(), node);
+
+                    System.out.println("Stored " + chunkFileName + " in " + node);
+                }
 
                 chunkNumber++;
             }
@@ -76,14 +90,15 @@ public class StorageService {
         }
     }
 
-
-
     /*
-     * downloadFile()
-     * --------------
-     * Reconstructs the original file by retrieving
-     * its chunks from storage nodes using metadata.
-     */
+ * downloadFile()
+ * --------------
+ * Reconstructs the file by retrieving chunk replicas
+ * from available nodes.
+ *
+ * If one node fails, the system automatically
+ * tries the replica stored in another node.
+ */
 
     public void downloadFile(String fileName) throws IOException {
 
@@ -91,40 +106,56 @@ public class StorageService {
 
         FileOutputStream fos = new FileOutputStream(outputFile);
 
-        // Get nodes where chunks are stored
-        
+        // Get nodes containing chunk replicas
         List<String> nodes = metadataManager.getChunks(fileName);
 
         int chunkNumber = 1;
 
-        for (String node : nodes) {
+        for (int i = 0; i < nodes.size(); i += REPLICATION_FACTOR) {
 
-            // Construct chunk path
-            String chunkPath =
-                    STORAGE_PATH + node + "/" + fileName + "_chunk_" + chunkNumber;
+            boolean chunkRecovered = false;
 
-            File chunkFile = new File(chunkPath);
+            // Try each replica node
+            for (int r = 0; r < REPLICATION_FACTOR; r++) {
 
-            if (!chunkFile.exists()) {
+                if (i + r >= nodes.size()) break;
 
-                System.out.println("Chunk missing from " + node);
-                chunkNumber++;
-                continue;
+                String node = nodes.get(i + r);
+
+                String chunkPath =
+                        STORAGE_PATH + node + "/" + fileName + "_chunk_" + chunkNumber;
+
+                File chunkFile = new File(chunkPath);
+
+                if (!chunkFile.exists()) {
+
+                    System.out.println("Chunk_" + chunkNumber +
+                            " missing in " + node + ", trying replica...");
+                    continue;
+                }
+
+                FileInputStream fis = new FileInputStream(chunkFile);
+
+                byte[] buffer = new byte[CHUNK_SIZE];
+                int bytesRead;
+
+                while ((bytesRead = fis.read(buffer)) != -1) {
+
+                    fos.write(buffer, 0, bytesRead);
+                }
+
+                fis.close();
+
+                System.out.println("Retrieved chunk_" + chunkNumber + " from " + node);
+
+                chunkRecovered = true;
+                break;
             }
 
-            FileInputStream fis = new FileInputStream(chunkFile);
+            if (!chunkRecovered) {
 
-            byte[] buffer = new byte[CHUNK_SIZE];
-            int bytesRead;
-
-            while ((bytesRead = fis.read(buffer)) != -1) {
-
-                fos.write(buffer, 0, bytesRead);
+                System.out.println("ERROR: Chunk_" + chunkNumber + " lost!");
             }
-
-            fis.close();
-
-            System.out.println("Retrieved chunk_" + chunkNumber + " from " + node);
 
             chunkNumber++;
         }
@@ -132,5 +163,14 @@ public class StorageService {
         fos.close();
 
         System.out.println("File reconstructed successfully as: " + outputFile);
+    }
+
+    /*
+    * showMetadata()
+    * --------------
+    * Displays metadata of stored files.
+    */
+    public void showMetadata() {
+        metadataManager.printMetadata();
     }
 }

@@ -5,13 +5,11 @@ import java.util.List;
 /*
  * NodeManager
  * -----------
- * This class is responsible for managing storage nodes.
- * Instead of hardcoding node1, node2, node3, this class
- * automatically detects all available storage nodes
- * from the storage directory.
+ * Responsible for managing available storage nodes.
  *
- * This makes the system scalable because new nodes can
- * be added without changing the code.
+ * Features:
+ * - Automatically creates storage nodes
+ * - Detects available nodes dynamically
  */
 
 public class NodeManager {
@@ -19,64 +17,56 @@ public class NodeManager {
     // Base storage directory
     private static final String STORAGE_PATH = "storage/";
 
-    /*
-     * getAvailableNodes()
-     * -------------------
-     * This method scans the storage directory and
-     * returns a list of all node folders.
-     *
-     * Example directory structure:
-     *
-     * storage/
-     *    node1
-     *    node2
-     *    node3
-     *
-     * Output:
-     * [node1, node2, node3]
-     */
+    // Number of nodes in the system
+    private static final int NODE_COUNT = 3;
 
+
+    /*
+     * Ensures storage nodes exist.
+     * If not, they are created automatically.
+     */
+    public static void initializeNodes() {
+
+        File storageDir = new File(STORAGE_PATH);
+
+        if (!storageDir.exists()) {
+            storageDir.mkdir();
+        }
+
+        for (int i = 1; i <= NODE_COUNT; i++) {
+
+            File nodeDir = new File(STORAGE_PATH + "node" + i);
+
+            if (!nodeDir.exists()) {
+
+                nodeDir.mkdir();
+                System.out.println("Created node: node" + i);
+            }
+        }
+    }
+
+
+    /*
+     * Returns list of available storage nodes
+     */
     public static List<String> getAvailableNodes() {
 
         List<String> nodes = new ArrayList<>();
 
         File storageDir = new File(STORAGE_PATH);
 
-        // List all directories inside storage/
         File[] files = storageDir.listFiles();
 
-        if (files != null) {
-            for (File file : files) {
+        if (files == null) return nodes;
 
-                // Check if it is a directory (node)
-                if (file.isDirectory()) {
-                    nodes.add(file.getName());
-                }
+        for (File file : files) {
+
+            if (file.isDirectory()) {
+
+                nodes.add(file.getName());
             }
         }
 
         return nodes;
-    }
-
-    /*
-     * getNodeForChunk()
-     * -----------------
-     * This method decides which node should store
-     * a particular chunk.
-     *
-     * We use round-robin distribution so that
-     * chunks are evenly distributed across nodes.
-     */
-
-    public static String getNodeForChunk(int chunkNumber) {
-
-        List<String> nodes = getAvailableNodes();
-
-        if (nodes.isEmpty()) {
-            throw new RuntimeException("No storage nodes available!");
-        }
-
-        // Round robin node selection
-        return nodes.get((chunkNumber - 1) % nodes.size());
     }
 }
