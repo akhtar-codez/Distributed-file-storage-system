@@ -1,114 +1,73 @@
-import java.io.*;
 import java.util.*;
 
 /*
  * MetadataManager
  * ----------------
- * Responsible for maintaining metadata about
- * which nodes store chunks of each file.
+ * Stores metadata about where file chunks are located.
  *
- * Metadata is persisted in a file so that
- * it survives program restart.
+ * Structure:
+ * filename -> chunk number -> list of nodes storing that chunk
  */
 
 public class MetadataManager {
 
-    private static final String METADATA_FILE = "metadata.txt";
-
-    private Map<String, List<String>> metadata = new HashMap<>();
-
-
-    public MetadataManager() {
-        loadMetadata();
-    }
+    // filename -> (chunkNumber -> nodes)
+    private Map<String, Map<Integer, List<String>>> metadata = new HashMap<>();
 
 
     /*
-     * Adds a node entry for a file chunk
+     * Adds metadata entry for a chunk
      */
-    public void addChunk(String filename, String node) {
+    public void addChunk(String filename, int chunkNumber, String node) {
 
-        metadata.computeIfAbsent(filename, k -> new ArrayList<>()).add(node);
-
-        saveMetadata();
+        metadata
+            .computeIfAbsent(filename, k -> new HashMap<>())
+            .computeIfAbsent(chunkNumber, k -> new ArrayList<>())
+            .add(node);
     }
 
 
     /*
-     * Returns nodes where chunks of the file exist
+     * Returns nodes storing a specific chunk
      */
-    public List<String> getChunks(String filename) {
+    public List<String> getChunkNodes(String filename, int chunkNumber) {
 
-        return metadata.getOrDefault(filename, new ArrayList<>());
+        if (!metadata.containsKey(filename)) return new ArrayList<>();
+
+        return metadata.get(filename).getOrDefault(chunkNumber, new ArrayList<>());
     }
 
 
     /*
-     * Saves metadata map to file
+     * Returns all chunk numbers for a file
      */
-    private void saveMetadata() {
+    public Set<Integer> getChunks(String filename) {
 
-        try {
+        if (!metadata.containsKey(filename)) return new HashSet<>();
 
-            BufferedWriter writer = new BufferedWriter(new FileWriter(METADATA_FILE));
-
-            for (String file : metadata.keySet()) {
-
-                writer.write(file + "=" + String.join(",", metadata.get(file)));
-                writer.newLine();
-            }
-
-            writer.close();
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        return metadata.get(filename).keySet();
     }
 
 
     /*
-     * Loads metadata from file
-     */
-    private void loadMetadata() {
-
-        try {
-
-            File file = new File(METADATA_FILE);
-
-            if (!file.exists()) return;
-
-            BufferedReader reader = new BufferedReader(new FileReader(file));
-
-            String line;
-
-            while ((line = reader.readLine()) != null) {
-
-                String[] parts = line.split("=");
-
-                if (parts.length != 2) continue;
-
-                String filename = parts[0];
-                String[] nodes = parts[1].split(",");
-
-                metadata.put(filename, new ArrayList<>(Arrays.asList(nodes)));
-            }
-
-            reader.close();
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-
-    /*
-     * Debug method
+     * Debug method to print metadata
      */
     public void printMetadata() {
 
+        System.out.println("----- METADATA -----");
+
         for (String file : metadata.keySet()) {
 
-            System.out.println(file + " -> " + metadata.get(file));
+            System.out.println("File: " + file);
+
+            Map<Integer, List<String>> chunks = metadata.get(file);
+
+            for (int chunk : chunks.keySet()) {
+
+                System.out.println(
+                        "Chunk_" + chunk + " -> " + chunks.get(chunk)
+                );
+            }
         }
     }
 }
