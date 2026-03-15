@@ -1,9 +1,9 @@
 package com.distributedstorage.backend.model;
 import java.util.List;
-import jakarta.persistence.CascadeType;
+
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-
+import jakarta.persistence.OneToMany;
 @Entity
 public class FileMetadata {
 
@@ -61,4 +61,7 @@ public class FileMetadata {
     }
    @OneToMany(mappedBy = "file", cascade = CascadeType.ALL, orphanRemoval = true)
 private List<Chunk> chunks;
+@OneToMany(mappedBy = "file", cascade = CascadeType.ALL, orphanRemoval = true)
+private List<FileVersion> versions;
+
 }
