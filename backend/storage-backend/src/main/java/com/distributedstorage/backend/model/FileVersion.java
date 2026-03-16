@@ -2,9 +2,15 @@ package com.distributedstorage.backend.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-
+import jakarta.persistence.Index;
 @Entity
-@Table(name = "file_version")
+@Table(
+    name = "file_version",
+    indexes = {
+        @Index(name = "idx_version_file", columnList = "file_id"),
+        @Index(name = "idx_version_file_version", columnList = "file_id,versionNumber")
+    }
+)
 public class FileVersion {
 
     @Id

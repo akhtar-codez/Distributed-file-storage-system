@@ -3,8 +3,12 @@ package com.distributedstorage.backend.controller;
 import com.distributedstorage.backend.dto.ApiResponseDTO;
 import com.distributedstorage.backend.dto.FileUploadResponseDTO;
 import com.distributedstorage.backend.model.FileMetadata;
+import com.distributedstorage.backend.model.FileVersion;
 import com.distributedstorage.backend.service.FileService;
+import com.distributedstorage.backend.service.FileVersionService;
+
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -14,40 +18,44 @@ import java.util.List;
 public class FileController {
 
     private final FileService fileService;
+    private final FileVersionService fileVersionService;
 
     @Value("${storage.base-path}")
-private String basePath;
-    public FileController(FileService fileService) {
+    private String basePath;
+
+    // Single constructor for dependency injection
+    public FileController(FileService fileService, FileVersionService fileVersionService) {
         this.fileService = fileService;
+        this.fileVersionService = fileVersionService;
     }
 
-    // Upload file metadata
+    // Upload file
     @PostMapping("/upload")
     public ApiResponseDTO<FileUploadResponseDTO> uploadFile(
-              @RequestParam String fileName,
-        @RequestParam Long fileSize,
-        @RequestParam Long userId
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            @RequestParam Long userId
     ) {
 
-      FileMetadata savedFile = fileService.saveMetadata(
-        fileName,
-        basePath + "/node1/" + fileName,
-        fileSize,
-        userId
-);
+        try {
 
-        FileUploadResponseDTO response =
-                new FileUploadResponseDTO(
-                        savedFile.getId(),
-                        savedFile.getFileName(),
-                        savedFile.getFileSize()
-                );
+            FileMetadata savedFile = fileService.processFileUpload(file, userId);
 
-        return new ApiResponseDTO<>(
-                "SUCCESS",
-                "File uploaded successfully",
-                response
-        );
+            FileUploadResponseDTO response =
+                    new FileUploadResponseDTO(
+                            savedFile.getId(),
+                            savedFile.getFileName(),
+                            savedFile.getFileSize()
+                    );
+
+            return new ApiResponseDTO<>(
+                    "SUCCESS",
+                    "File uploaded successfully",
+                    response
+            );
+
+        } catch (Exception e) {
+            throw new RuntimeException("File upload failed: " + e.getMessage());
+        }
     }
 
     // Get all files
@@ -92,7 +100,7 @@ private String basePath;
         );
     }
 
-    // DELETE file metadata
+    // Delete file
     @DeleteMapping("/{id}")
     public ApiResponseDTO<String> deleteFile(@PathVariable Long id){
 
@@ -104,4 +112,40 @@ private String basePath;
                 null
         );
     }
+
+    // Get version history
+    @GetMapping("/{id}/versions")
+    public ApiResponseDTO<List<Integer>> getFileVersions(@PathVariable Long id){
+
+        FileMetadata file = fileService.getFileById(id);
+
+        List<FileVersion> versions = fileVersionService.getVersionsByFile(file);
+
+        List<Integer> versionNumbers =
+                versions.stream()
+                        .map(FileVersion::getVersionNumber)
+                        .toList();
+
+        return new ApiResponseDTO<>(
+                "SUCCESS",
+                "File versions fetched successfully",
+                versionNumbers
+        );
+    }
+
+    @GetMapping("/{id}/download")
+public ResponseEntity<byte[]> downloadFile(@PathVariable Long id) {
+
+    try {
+
+        byte[] fileData = fileService.downloadFile(id);
+
+        return ResponseEntity.ok()
+                .header("Content-Disposition","attachment; filename=file")
+                .body(fileData);
+
+    } catch (Exception e) {
+        throw new RuntimeException("File download failed");
+    }
+}
 }
