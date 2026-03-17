@@ -23,13 +23,12 @@ public class FileController {
     @Value("${storage.base-path}")
     private String basePath;
 
-    // Single constructor for dependency injection
+    // ✔ Fixed constructor
     public FileController(FileService fileService, FileVersionService fileVersionService) {
         this.fileService = fileService;
         this.fileVersionService = fileVersionService;
     }
 
-    // Upload file
     @PostMapping("/upload")
     public ApiResponseDTO<FileUploadResponseDTO> uploadFile(
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
@@ -37,7 +36,6 @@ public class FileController {
     ) {
 
         try {
-
             FileMetadata savedFile = fileService.processFileUpload(file, userId);
 
             FileUploadResponseDTO response =
@@ -58,7 +56,6 @@ public class FileController {
         }
     }
 
-    // Get all files
     @GetMapping
     public ApiResponseDTO<List<FileUploadResponseDTO>> getAllFiles() {
 
@@ -80,7 +77,6 @@ public class FileController {
         );
     }
 
-    // Get file by ID
     @GetMapping("/{id}")
     public ApiResponseDTO<FileUploadResponseDTO> getFileById(@PathVariable Long id){
 
@@ -100,7 +96,6 @@ public class FileController {
         );
     }
 
-    // Delete file
     @DeleteMapping("/{id}")
     public ApiResponseDTO<String> deleteFile(@PathVariable Long id){
 
@@ -113,7 +108,6 @@ public class FileController {
         );
     }
 
-    // Get version history
     @GetMapping("/{id}/versions")
     public ApiResponseDTO<List<Integer>> getFileVersions(@PathVariable Long id){
 
@@ -134,18 +128,19 @@ public class FileController {
     }
 
     @GetMapping("/{id}/download")
-public ResponseEntity<byte[]> downloadFile(@PathVariable Long id) {
+    public ResponseEntity<byte[]> downloadFile(@PathVariable Long id) {
 
-    try {
+        try {
 
-        byte[] fileData = fileService.downloadFile(id);
+            FileMetadata file = fileService.getFileById(id); // ✔ get filename
+            byte[] fileData = fileService.downloadFile(id);
 
-        return ResponseEntity.ok()
-                .header("Content-Disposition","attachment; filename=file")
-                .body(fileData);
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=" + file.getFileName()) // ✔ fixed
+                    .body(fileData);
 
-    } catch (Exception e) {
-        throw new RuntimeException("File download failed");
+        } catch (Exception e) {
+            throw new RuntimeException("File download failed");
+        }
     }
-}
 }
