@@ -1,8 +1,8 @@
 package com.distributedstorage.backend.model;
-import java.util.List;
-import jakarta.persistence.CascadeType;
+
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 public class FileMetadata {
@@ -20,9 +20,14 @@ public class FileMetadata {
     @JoinColumn(name = "user_id")
     private User user;
 
+    @OneToMany(mappedBy = "file", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Chunk> chunks;
+
+    @OneToMany(mappedBy = "file", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<FileVersion> versions;
+
     // REQUIRED by JPA
-    public FileMetadata() {
-    }
+    public FileMetadata() {}
 
     public FileMetadata(String fileName, String filePath, Long fileSize, LocalDateTime uploadedAt){
         this.fileName = fileName;
@@ -55,10 +60,16 @@ public class FileMetadata {
         return user;
     }
 
-    // ADD THIS METHOD
     public void setUser(User user) {
         this.user = user;
     }
-   @OneToMany(mappedBy = "file", cascade = CascadeType.ALL, orphanRemoval = true)
-private List<Chunk> chunks;
+
+    // (optional but good)
+    public List<Chunk> getChunks() {
+        return chunks;
+    }
+
+    public List<FileVersion> getVersions() {
+        return versions;
+    }
 }
