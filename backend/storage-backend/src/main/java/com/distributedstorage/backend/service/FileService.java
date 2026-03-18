@@ -108,23 +108,33 @@ public FileMetadata processFileUpload(MultipartFile file, Long userId) throws Ex
 
         while ((bytesRead = inputStream.read(buffer)) != -1) {
 
-         String node = storageNodes[chunkIndex % storageNodes.length];
+       // Select two nodes for replication
+String nodeA = storageNodes[chunkIndex % storageNodes.length];
+String nodeB = storageNodes[(chunkIndex + 1) % storageNodes.length];
 
-String chunkPath = "storage/" + node + "/" + fileMetadata.getFileName() + "_chunk_" + chunkIndex;
+// Primary path (main storage)
+String pathA = "storage/" + nodeA + "/" + fileMetadata.getFileName() + "_chunk_" + chunkIndex;
 
-            // Write chunk to disk safely
-            try (FileOutputStream fos = new FileOutputStream(chunkPath)) {
-                fos.write(buffer, 0, bytesRead);
-            }
+// Replica path (backup storage)
+String pathB = "storage/" + nodeB + "/" + fileMetadata.getFileName() + "_chunk_" + chunkIndex;
 
-            // Save chunk metadata
-            chunkService.createChunkMetadata(
-                    fileMetadata,
-                    chunkIndex,
-                    chunkPath,
-                    (long) bytesRead
-            );
+// Write chunk to primary node
+try (FileOutputStream fos = new FileOutputStream(pathA)) {
+    fos.write(buffer, 0, bytesRead);
+}
 
+// Write same chunk to replica node
+try (FileOutputStream fos = new FileOutputStream(pathB)) {
+    fos.write(buffer, 0, bytesRead);
+}
+
+// Save only primary path in DB
+chunkService.createChunkMetadata(
+        fileMetadata,
+        chunkIndex,
+        pathA,
+        (long) bytesRead
+);
             chunkIndex++;
         }
     }
