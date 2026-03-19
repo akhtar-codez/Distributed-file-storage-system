@@ -14,6 +14,7 @@ import com.distributedstorage.backend.model.FileMetadata;
 import com.distributedstorage.backend.model.User;
 import com.distributedstorage.backend.repository.FMDRepository;
 import com.distributedstorage.backend.repository.UserRepository;
+import com.distributedstorage.backend.storage.NodeManager;
 
 @Service
 public class FileService {
@@ -22,7 +23,7 @@ public class FileService {
     private final FMDRepository fmdRepository;
     private final UserRepository userRepository;
     private final FileVersionService fileVersionService;
-private final String[] storageNodes = {"node1", "node2", "node3"};
+
     public FileService(
             FMDRepository fmdRepository,
             UserRepository userRepository,
@@ -108,7 +109,8 @@ public FileMetadata processFileUpload(MultipartFile file, Long userId) throws Ex
 
         while ((bytesRead = inputStream.read(buffer)) != -1) {
 
-         String node = storageNodes[chunkIndex % storageNodes.length];
+        List<String> nodes = NodeManager.getAvailableNodes();
+        String node = nodes.get(chunkIndex % nodes.size());
 
 String chunkPath = "storage/" + node + "/" + fileMetadata.getFileName() + "_chunk_" + chunkIndex;
 
