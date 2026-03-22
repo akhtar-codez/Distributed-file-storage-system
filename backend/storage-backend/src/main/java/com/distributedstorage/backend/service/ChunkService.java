@@ -48,5 +48,10 @@ public class ChunkService {
     }
     public List<Chunk> getChunksOrdered(FileMetadata file){
     return chunkRepository.findByFileOrderByChunkIndexAsc(file);
-}
+    }
+    // Deletes a single chunk record from the database
+    public void deleteChunk(Chunk chunk) {
+        // Remove chunk metadata from database
+        chunkRepository.delete(chunk);
+    }
 }
