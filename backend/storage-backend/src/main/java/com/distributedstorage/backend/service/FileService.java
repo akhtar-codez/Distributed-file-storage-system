@@ -9,6 +9,8 @@ import java.io.FileOutputStream;
 import java.util.List;
 import java.time.LocalDateTime;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.distributedstorage.backend.dto.FileUploadResponseDTO;
 import com.distributedstorage.backend.model.Chunk;
 import com.distributedstorage.backend.model.FileMetadata;
 import com.distributedstorage.backend.model.User;
@@ -64,23 +66,23 @@ public class FileService {
     }
 
     // Handle file upload workflow
-@Transactional
-public FileMetadata processFileUpload(MultipartFile file, Long userId) throws Exception {
+    @Transactional
+    public FileMetadata processFileUpload(MultipartFile file, Long userId) throws Exception {
 
-    String fileName = file.getOriginalFilename();
-    Long fileSize = file.getSize();
-    String filePath = "storage/node1/" + fileName;
+        String fileName = file.getOriginalFilename();
+        Long fileSize = file.getSize();
+        String filePath = "storage/node1/" + fileName;
 
-    // Save metadata
-    FileMetadata savedFile = saveMetadata(fileName, filePath, fileSize, userId);
+        // Save metadata
+        FileMetadata savedFile = saveMetadata(fileName, filePath, fileSize, userId);
 
-    // Split file into chunks
-    try (InputStream inputStream = file.getInputStream()) {
-        createChunks(inputStream, savedFile);
+        // Split file into chunks
+        try (InputStream inputStream = file.getInputStream()) {
+            createChunks(inputStream, savedFile);
+        }
+
+        return savedFile;
     }
-
-    return savedFile;
-}
     // Fetch all stored files
     public List<FileMetadata> getAllFiles() {
         return fmdRepository.findAll();
@@ -101,52 +103,59 @@ public FileMetadata processFileUpload(MultipartFile file, Long userId) throws Ex
     // Split file into chunks and store metadata
     public void createChunks(InputStream inputStream, FileMetadata fileMetadata) throws Exception {
 
-        int chunkSize = 1024 * 1024; // 1MB
-        byte[] buffer = new byte[chunkSize];
+    int chunkSize = 1024 * 8; // 8KB
+    byte[] buffer = new byte[chunkSize];
+    List<String> nodes = NodeManager.getAvailableNodes();
 
-        int bytesRead;
-        int chunkIndex = 0;
+    int bytesRead;
+    int chunkIndex = 0;
 
-        while ((bytesRead = inputStream.read(buffer)) != -1) {
+    while ((bytesRead = inputStream.read(buffer)) != -1) {
 
-        List<String> nodes = NodeManager.getAvailableNodes();
         String node = nodes.get(chunkIndex % nodes.size());
+        String chunkPath = "storage/" + node + "/" + fileMetadata.getFileName() + "_chunk_" + chunkIndex;
 
-String chunkPath = "storage/" + node + "/" + fileMetadata.getFileName() + "_chunk_" + chunkIndex;
-
-            // Write chunk to disk safely
-            try (FileOutputStream fos = new FileOutputStream(chunkPath)) {
-                fos.write(buffer, 0, bytesRead);
-            }
-
-            // Save chunk metadata
-            chunkService.createChunkMetadata(
-                    fileMetadata,
-                    chunkIndex,
-                    chunkPath,
-                    (long) bytesRead
-            );
-
-            chunkIndex++;
+        try (FileOutputStream fos = new FileOutputStream(chunkPath)) {
+            fos.write(buffer, 0, bytesRead);
         }
+
+        chunkService.createChunkMetadata(
+                fileMetadata,
+                chunkIndex,
+                chunkPath,
+                (long) bytesRead
+        );
+
+        chunkIndex++;
     }
-    public byte[] downloadFile(Long fileId) throws Exception {
-
-    FileMetadata file = getFileById(fileId);
-
-    List<Chunk> chunks = chunkService.getChunksOrdered(file);
-
-    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-
-    for(Chunk chunk : chunks){
-
-       try (FileInputStream fis = new FileInputStream(chunk.getChunkPath())) {
-    byte[] buffer = fis.readAllBytes();
-    outputStream.write(buffer);
 }
+        public byte[] downloadFile(Long fileId) throws Exception {
+
+        FileMetadata file = getFileById(fileId);
+
+        List<Chunk> chunks = chunkService.getChunksOrdered(file);
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        for(Chunk chunk : chunks){
+
+        try (FileInputStream fis = new FileInputStream(chunk.getChunkPath())) {
+        byte[] buffer = fis.readAllBytes();
+        outputStream.write(buffer);
+    }
     }
 
     return outputStream.toByteArray();
+}
+
+ public List<FileUploadResponseDTO> getFilesByUser(Long userId) {
+    userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+    
+    return fmdRepository.findByUserId(userId)
+            .stream()
+            .map(f -> new FileUploadResponseDTO(f.getId(), f.getFileName(), f.getFileSize()))
+            .toList();
 }
 
 }
