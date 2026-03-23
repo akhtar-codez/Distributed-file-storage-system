@@ -1,5 +1,4 @@
 package com.distributedstorage.backend.model;
-
 import jakarta.persistence.*;
 import java.util.List;
 
@@ -15,8 +14,8 @@ public class User {
     private String email;
     private String password;
 
-    @OneToMany(mappedBy = "user")
-    private List<FileMetadata> files;
+ @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+private List<FileMetadata> files;
 
     public User() {
     }
@@ -40,4 +39,7 @@ public class User {
     public List<FileMetadata> getFiles() {
         return files;
     }
+    public void setPassword(String password) {
+    this.password = password;
+}
 }
