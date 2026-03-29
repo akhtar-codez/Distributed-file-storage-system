@@ -1,9 +1,15 @@
 package com.distributedstorage.backend.model;
-
+import jakarta.persistence.Index;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "chunk")
+@Table(
+    name = "chunk",
+    indexes = {
+        @Index(name = "idx_chunk_file", columnList = "file_id"),
+        @Index(name = "idx_chunk_file_order", columnList = "file_id,chunkIndex")
+    }
+)
 public class Chunk {
 
     @Id

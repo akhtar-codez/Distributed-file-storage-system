@@ -1,8 +1,8 @@
 package com.distributedstorage.backend.model;
-import java.util.List;
-import jakarta.persistence.CascadeType;
+
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 public class FileMetadata {
@@ -16,49 +16,50 @@ public class FileMetadata {
     private Long fileSize;
     private LocalDateTime uploadedAt;
 
+    // Many files can belong to one user
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
 
-    // REQUIRED by JPA
-    public FileMetadata() {
-    }
+    // One file has many chunks — delete chunks when file is deleted
+    @OneToMany(mappedBy = "file", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Chunk> chunks;
 
-    public FileMetadata(String fileName, String filePath, Long fileSize, LocalDateTime uploadedAt){
+    // One file has many versions — delete versions when file is deleted
+    @OneToMany(mappedBy = "file", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<FileVersion> versions;
+
+    // Required by JPA — no-arg constructor
+    public FileMetadata() {}
+
+    // Constructor for creating new file metadata
+    public FileMetadata(String fileName, String filePath, Long fileSize, LocalDateTime uploadedAt) {
         this.fileName = fileName;
         this.filePath = filePath;
         this.fileSize = fileSize;
         this.uploadedAt = uploadedAt;
     }
 
-    public Long getId(){
-        return id;
-    }
+    // Getters
+    public Long getId() { return id; }
+    public String getFileName() { return fileName; }
+    public String getFilePath() { return filePath; }
+    public Long getFileSize() { return fileSize; }
+    public LocalDateTime getUploadedAt() { return uploadedAt; }
+    public User getUser() { return user; }
+    public List<Chunk> getChunks() { return chunks; }
+    public List<FileVersion> getVersions() { return versions; }
 
-    public String getFileName() {
-        return fileName;
-    }
+    // Setters
+    // Links file to its owner
+    public void setUser(User user) { this.user = user; }
 
-    public String getFilePath() {
-        return filePath;
-    }
+    // Updates file name — used during file update operation
+    public void setFileName(String fileName) { this.fileName = fileName; }
 
-    public Long getFileSize() {
-        return fileSize;
-    }
+    // Updates file size — used during file update operation
+    public void setFileSize(Long fileSize) { this.fileSize = fileSize; }
 
-    public LocalDateTime getUploadedAt() {
-        return uploadedAt;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    // ADD THIS METHOD
-    public void setUser(User user) {
-        this.user = user;
-    }
-   @OneToMany(mappedBy = "file", cascade = CascadeType.ALL, orphanRemoval = true)
-private List<Chunk> chunks;
+    // Updates upload timestamp — used during file update operation
+    public void setUploadedAt(LocalDateTime uploadedAt) { this.uploadedAt = uploadedAt; }
 }
