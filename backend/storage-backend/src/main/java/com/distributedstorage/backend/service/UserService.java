@@ -6,6 +6,7 @@ import com.distributedstorage.backend.model.FileMetadata;
 import com.distributedstorage.backend.model.User;
 import com.distributedstorage.backend.repository.FMDRepository;
 import com.distributedstorage.backend.repository.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.util.List;
 
@@ -18,10 +19,14 @@ public class UserService {
     // Repository for file metadata — needed to delete user's files before deleting user
     private final FMDRepository fmdRepository;
 
+    // PasswordEncoder — used to hash passwords before saving to database
+    private final PasswordEncoder passwordEncoder;
+
     // Constructor injection — Spring automatically provides both repositories
-    public UserService(UserRepository userRepository, FMDRepository fmdRepository) {
+    public UserService(UserRepository userRepository, FMDRepository fmdRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.fmdRepository = fmdRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     // Registers a new user after checking for duplicate email
@@ -37,7 +42,9 @@ public class UserService {
         User user = new User();
         user.setUsername(dto.getUsername());
         user.setEmail(dto.getEmail());
-        user.setPassword(dto.getPassword());
+        
+        // Hash password using BCrypt before saving — never store plain text passwords
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
 
         return userRepository.save(user);
     }
