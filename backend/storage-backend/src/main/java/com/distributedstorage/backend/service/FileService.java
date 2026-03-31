@@ -17,6 +17,13 @@ import com.distributedstorage.backend.model.User;
 import com.distributedstorage.backend.repository.FMDRepository;
 import com.distributedstorage.backend.repository.UserRepository;
 import com.distributedstorage.backend.storage.NodeManager;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+
+import com.distributedstorage.backend.exception.BadRequestException;
 
 @Service
 public class FileService {
@@ -73,6 +80,31 @@ public class FileService {
         return savedFile;
     }
 
+    // Validates file extension against allowed types from application.properties
+    @Value("${storage.allowed-extensions}")
+    private String allowedExtensions;
+
+    // Checks if uploaded file has an allowed extension
+    private void validateFileType(String fileName) {
+
+        // Extract file extension from filename
+        int lastDot = fileName.lastIndexOf('.');
+
+        // Reject files with no extension
+        if (lastDot == -1) {
+            throw new BadRequestException("File has no extension. Allowed types: " + allowedExtensions);
+        }
+
+        // Get extension and convert to lowercase for case-insensitive comparison
+        String extension = fileName.substring(lastDot + 1).toLowerCase();
+
+        // Check if extension is in allowed list
+        List<String> allowed = List.of(allowedExtensions.split(","));
+        if (!allowed.contains(extension)) {
+            throw new BadRequestException("File type '." + extension + "' not allowed. Allowed types: " + allowedExtensions);
+        }
+    }
+
     // Handles complete file upload workflow — metadata + chunking
     @Transactional
     public FileMetadata processFileUpload(MultipartFile file, Long userId) throws Exception {
@@ -80,6 +112,9 @@ public class FileService {
         String fileName = file.getOriginalFilename();
         Long fileSize = file.getSize();
         String filePath = "storage/node1/" + fileName;
+
+        // Validate file type before processing
+        validateFileType(fileName);
 
         // Save metadata first to get the fileId
         FileMetadata savedFile = saveMetadata(fileName, filePath, fileSize, userId);
@@ -231,5 +266,17 @@ public class FileService {
                 .stream()
                 .map(f -> new FileUploadResponseDTO(f.getId(), f.getFileName(), f.getFileSize()))
                 .toList();
+    }
+
+    // Returns paginated list of files — page and size controlled by caller
+    public Page<FileUploadResponseDTO> getFilesPaginated(int page, int size) {
+
+        // Create pageable object — page number and page size
+        // Sorted by uploadedAt descending — newest files first
+        Pageable pageable = PageRequest.of(page, size, Sort.by("uploadedAt").descending());
+
+        // Fetch paginated results from database
+        return fmdRepository.findAll(pageable)
+                .map(f -> new FileUploadResponseDTO(f.getId(), f.getFileName(), f.getFileSize()));
     }
 }
