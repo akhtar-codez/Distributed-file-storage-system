@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import com.distributedstorage.backend.exception.BadRequestException;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 
@@ -32,7 +34,7 @@ public class FileController {
 
     @PostMapping("/upload")
     public ApiResponseDTO<FileUploadResponseDTO> uploadFile(
-            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            @RequestParam("file") MultipartFile file,
             @RequestParam Long userId
     ) {
 
@@ -52,8 +54,13 @@ public class FileController {
                     response
             );
 
-        } catch (Exception e) {
-            throw new RuntimeException("File upload failed: " + e.getMessage());
+        } 
+        catch (BadRequestException e) {
+                 // Re-throw BadRequestException so GlobalExceptionHandler returns 400
+                throw e;
+        } 
+        catch (Exception e){
+                throw new RuntimeException("File upload failed: " + e.getMessage());
         }
     }
 
@@ -172,4 +179,15 @@ public class FileController {
                 throw new RuntimeException("File update failed: " + e.getMessage());
         }
     }
+        // Returns paginated list of files
+        // page — page number starting from 0
+        // size — number of files per page (default 10)
+        @GetMapping("/paged")
+        public ApiResponseDTO<Page<FileUploadResponseDTO>> getFilesPaginated(
+                @RequestParam(defaultValue = "0") int page,
+                @RequestParam(defaultValue = "10") int size
+        ) {
+        Page<FileUploadResponseDTO> files = fileService.getFilesPaginated(page, size);
+        return new ApiResponseDTO<>("SUCCESS", "Files fetched successfully", files);
+        }
 }

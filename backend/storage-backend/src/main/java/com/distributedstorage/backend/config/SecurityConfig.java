@@ -37,6 +37,8 @@ public class SecurityConfig {
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers("/users/register").permitAll()
                 .requestMatchers("/").permitAll()
+                .requestMatchers("/swagger-ui/**").permitAll()
+                .requestMatchers("/v3/api-docs/**").permitAll()
                 // All other routes require authentication
                 .anyRequest().authenticated()
             )
