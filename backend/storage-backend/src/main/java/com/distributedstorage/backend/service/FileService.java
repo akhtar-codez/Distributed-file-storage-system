@@ -10,6 +10,7 @@ import java.util.List;
 import java.time.LocalDateTime;
 import org.springframework.transaction.annotation.Transactional;
 import com.distributedstorage.backend.dto.FileUploadResponseDTO;
+import com.distributedstorage.backend.exception.ResourceNotFoundException;
 import com.distributedstorage.backend.model.Chunk;
 import com.distributedstorage.backend.model.FileMetadata;
 import com.distributedstorage.backend.model.User;
@@ -50,7 +51,7 @@ public class FileService {
 
         // Fetch user who uploaded the file
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+               .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
         // Create metadata object with file details
         FileMetadata fileMetadata = new FileMetadata(
@@ -133,7 +134,7 @@ public class FileService {
     // Fetches file metadata by ID — throws exception if not found
     public FileMetadata getFileById(Long id) {
         return fmdRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("File not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("File not found with id: " + id));
     }
 
     // Deletes file metadata from database
@@ -223,7 +224,7 @@ public class FileService {
 
         // Validate user exists before fetching files
         userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+               .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
         // Map FileMetadata entities to DTOs to avoid circular reference
         return fmdRepository.findByUserId(userId)

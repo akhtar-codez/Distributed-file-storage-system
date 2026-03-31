@@ -2,6 +2,8 @@ package com.distributedstorage.backend.service;
 
 import com.distributedstorage.backend.dto.UserRegistrationDTO;
 import com.distributedstorage.backend.dto.UserResponseDTO;
+import com.distributedstorage.backend.exception.BadRequestException;
+import com.distributedstorage.backend.exception.ResourceNotFoundException;
 import com.distributedstorage.backend.model.FileMetadata;
 import com.distributedstorage.backend.model.User;
 import com.distributedstorage.backend.repository.FMDRepository;
@@ -34,9 +36,9 @@ public class UserService {
 
         // Reject registration if email already exists
         userRepository.findByEmail(dto.getEmail())
-                .ifPresent(u -> {
-                    throw new RuntimeException("Email already registered");
-                });
+        .ifPresent(u -> {
+            throw new BadRequestException("Email already registered");
+        });
 
         // Build new user object from request data
         User user = new User();
@@ -52,13 +54,14 @@ public class UserService {
     // Returns raw User entity — used internally by other services
     public User getUserById(Long id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
     }
 
     // Returns clean UserResponseDTO — used by API endpoints (no password exposed)
     public UserResponseDTO getUserProfile(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                // NEW
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
         return new UserResponseDTO(
                 user.getId(),
@@ -72,7 +75,7 @@ public class UserService {
 
         // Check if user exists before attempting delete
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
         // Delete all files belonging to this user first
         // Required to avoid foreign key constraint violation in MySQL

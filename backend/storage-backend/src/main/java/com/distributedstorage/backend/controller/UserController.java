@@ -10,6 +10,7 @@ import com.distributedstorage.backend.service.FileService;
 import com.distributedstorage.backend.service.UserService;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/users")
@@ -24,7 +25,7 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    public ApiResponseDTO<String> registerUser(@RequestBody UserRegistrationDTO dto) {
+    public ApiResponseDTO<String> registerUser(@Valid @RequestBody UserRegistrationDTO dto) {
         User user = userService.registerUser(dto);
         return new ApiResponseDTO<>(
                 "SUCCESS",
