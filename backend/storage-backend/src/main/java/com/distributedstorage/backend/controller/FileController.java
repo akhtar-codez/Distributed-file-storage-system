@@ -10,6 +10,7 @@ import com.distributedstorage.backend.service.FileVersionService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -141,6 +142,34 @@ public class FileController {
 
         } catch (Exception e) {
             throw new RuntimeException("File download failed");
+        }
+    }
+    // Updates an existing file — replaces old chunks with new file and creates new version
+        @PutMapping("/{id}/update")
+        public ApiResponseDTO<FileUploadResponseDTO> updateFile(
+                @PathVariable Long id,
+                @RequestParam("file") MultipartFile file
+        ) {
+
+        try {
+                // Call service to handle update workflow
+                FileMetadata updatedFile = fileService.updateFile(id, file);
+
+                // Build response DTO with updated file details
+                FileUploadResponseDTO response = new FileUploadResponseDTO(
+                        updatedFile.getId(),
+                        updatedFile.getFileName(),
+                        updatedFile.getFileSize()
+                );
+
+                return new ApiResponseDTO<>(
+                        "SUCCESS",
+                        "File updated successfully",
+                        response
+                );
+
+        } catch (Exception e) {
+                throw new RuntimeException("File update failed: " + e.getMessage());
         }
     }
 }

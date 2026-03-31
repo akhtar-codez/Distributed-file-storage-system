@@ -9,20 +9,31 @@ import java.io.FileOutputStream;
 import java.util.List;
 import java.time.LocalDateTime;
 import org.springframework.transaction.annotation.Transactional;
+import com.distributedstorage.backend.dto.FileUploadResponseDTO;
+import com.distributedstorage.backend.exception.ResourceNotFoundException;
 import com.distributedstorage.backend.model.Chunk;
 import com.distributedstorage.backend.model.FileMetadata;
 import com.distributedstorage.backend.model.User;
 import com.distributedstorage.backend.repository.FMDRepository;
 import com.distributedstorage.backend.repository.UserRepository;
+import com.distributedstorage.backend.storage.NodeManager;
 
 @Service
 public class FileService {
 
+    // Service for chunk operations
     private final ChunkService chunkService;
+
+    // Repository for file metadata database operations
     private final FMDRepository fmdRepository;
+
+    // Repository for user database operations
     private final UserRepository userRepository;
+
+    // Service for file versioning operations
     private final FileVersionService fileVersionService;
-private final String[] storageNodes = {"node1", "node2", "node3"};
+
+    // Constructor injection — Spring provides all dependencies automatically
     public FileService(
             FMDRepository fmdRepository,
             UserRepository userRepository,
@@ -35,14 +46,14 @@ private final String[] storageNodes = {"node1", "node2", "node3"};
         this.chunkService = chunkService;
     }
 
-    // Save metadata for uploaded file
+    // Saves file metadata to database and creates initial version entry
     public FileMetadata saveMetadata(String fileName, String filePath, Long fileSize, Long userId) {
 
         // Fetch user who uploaded the file
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+               .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
-        // Create metadata object
+        // Create metadata object with file details
         FileMetadata fileMetadata = new FileMetadata(
                 fileName,
                 filePath,
@@ -50,83 +61,118 @@ private final String[] storageNodes = {"node1", "node2", "node3"};
                 LocalDateTime.now()
         );
 
-        // Attach file to user
+        // Link file to the uploading user
         fileMetadata.setUser(user);
 
-        // Save metadata
+        // Persist metadata to database
         FileMetadata savedFile = fmdRepository.save(fileMetadata);
 
-        // Create version entry
+        // Create version 1 entry for this file
         fileVersionService.createNewVersion(savedFile);
 
         return savedFile;
     }
 
-    // Handle file upload workflow
-@Transactional
-public FileMetadata processFileUpload(MultipartFile file, Long userId) throws Exception {
+    // Handles complete file upload workflow — metadata + chunking
+    @Transactional
+    public FileMetadata processFileUpload(MultipartFile file, Long userId) throws Exception {
 
-    String fileName = file.getOriginalFilename();
-    Long fileSize = file.getSize();
-    String filePath = "storage/node1/" + fileName;
+        String fileName = file.getOriginalFilename();
+        Long fileSize = file.getSize();
+        String filePath = "storage/node1/" + fileName;
 
-    // Save metadata
-    FileMetadata savedFile = saveMetadata(fileName, filePath, fileSize, userId);
+        // Save metadata first to get the fileId
+        FileMetadata savedFile = saveMetadata(fileName, filePath, fileSize, userId);
 
-    // Split file into chunks
-    try (InputStream inputStream = file.getInputStream()) {
-        createChunks(inputStream, savedFile);
+        // Split file into chunks and store on disk
+        try (InputStream inputStream = file.getInputStream()) {
+            createChunks(inputStream, savedFile);
+        }
+
+        return savedFile;
     }
 
-    return savedFile;
-}
-    // Fetch all stored files
+    // Handles file update — replaces old chunks with new file and creates new version
+    @Transactional
+    public FileMetadata updateFile(Long fileId, MultipartFile newFile) throws Exception {
+
+        // Fetch existing file metadata — throws 404 if not found
+        FileMetadata existingFile = getFileById(fileId);
+
+        // Step 1 — Delete old chunk files from disk to free up space
+        deleteChunksFromDisk(existingFile);
+
+        // Step 2 — Delete old chunk records from database
+        List<Chunk> oldChunks = chunkService.getChunksOrdered(existingFile);
+        for (Chunk chunk : oldChunks) {
+            chunkService.deleteChunk(chunk);
+        }
+
+        // Step 3 — Update file metadata with new file details
+        existingFile.setFileName(newFile.getOriginalFilename());
+        existingFile.setFileSize(newFile.getSize());
+        existingFile.setUploadedAt(LocalDateTime.now());
+
+        // Step 4 — Save updated metadata to database
+        FileMetadata updatedFile = fmdRepository.save(existingFile);
+
+        // Step 5 — Store new chunks on disk and in database
+        try (InputStream inputStream = newFile.getInputStream()) {
+            createChunks(inputStream, updatedFile);
+        }
+
+        // Step 6 — Create new version entry to track this update
+        fileVersionService.createNewVersion(updatedFile);
+
+        return updatedFile;
+    }
+    // Returns all files stored in the system
     public List<FileMetadata> getAllFiles() {
         return fmdRepository.findAll();
     }
 
-    // Fetch file metadata by ID
+    // Fetches file metadata by ID — throws exception if not found
     public FileMetadata getFileById(Long id) {
         return fmdRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("File not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("File not found with id: " + id));
     }
 
-    // Delete file metadata
+    // Deletes file metadata from database
     public void deleteFile(Long id) {
         FileMetadata file = getFileById(id);
         fmdRepository.delete(file);
     }
 
-    // Split file into chunks and store metadata
+    // Splits file into 8KB chunks and distributes across storage nodes
     public void createChunks(InputStream inputStream, FileMetadata fileMetadata) throws Exception {
 
-        int chunkSize = 1024 * 1024; // 1MB
+        int chunkSize = 1024 * 8; // 8KB per chunk
         byte[] buffer = new byte[chunkSize];
+
+        // Get available storage nodes for distribution
+        List<String> nodes = NodeManager.getAvailableNodes();
 
         int bytesRead;
         int chunkIndex = 0;
 
         while ((bytesRead = inputStream.read(buffer)) != -1) {
 
-       // Select two nodes for replication
-String nodeA = storageNodes[chunkIndex % storageNodes.length];
-String nodeB = storageNodes[(chunkIndex + 1) % storageNodes.length];
+            // Distribute chunks across nodes in round-robin fashion
+            String node = nodes.get(chunkIndex % nodes.size());
+            String chunkPath = "storage/" + node + "/" + fileMetadata.getFileName() + "_chunk_" + chunkIndex;
 
-// Primary path (main storage)
-String pathA = "storage/" + nodeA + "/" + fileMetadata.getFileName() + "_chunk_" + chunkIndex;
+            // Write chunk bytes to disk
+            try (FileOutputStream fos = new FileOutputStream(chunkPath)) {
+                fos.write(buffer, 0, bytesRead);
+            }
 
-// Replica path (backup storage)
-String pathB = "storage/" + nodeB + "/" + fileMetadata.getFileName() + "_chunk_" + chunkIndex;
-
-// Write chunk to primary node
-try (FileOutputStream fos = new FileOutputStream(pathA)) {
-    fos.write(buffer, 0, bytesRead);
-}
-
-// Write same chunk to replica node
-try (FileOutputStream fos = new FileOutputStream(pathB)) {
-    fos.write(buffer, 0, bytesRead);
-}
+            // Save chunk metadata in database
+            chunkService.createChunkMetadata(
+                    fileMetadata,
+                    chunkIndex,
+                    chunkPath,
+                    (long) bytesRead
+            );
 
 // Save only primary path in DB
 chunkService.createChunkMetadata(
@@ -138,23 +184,59 @@ chunkService.createChunkMetadata(
             chunkIndex++;
         }
     }
+
+    // Reassembles file from chunks and returns as byte array for download
     public byte[] downloadFile(Long fileId) throws Exception {
 
-    FileMetadata file = getFileById(fileId);
+        // Fetch file metadata
+        FileMetadata file = getFileById(fileId);
 
-    List<Chunk> chunks = chunkService.getChunksOrdered(file);
+        // Get chunks in correct order for reassembly
+        List<Chunk> chunks = chunkService.getChunksOrdered(file);
 
-    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-    for(Chunk chunk : chunks){
+        // Read each chunk from disk and append to output stream
+        for (Chunk chunk : chunks) {
+            try (FileInputStream fis = new FileInputStream(chunk.getChunkPath())) {
+                byte[] buffer = fis.readAllBytes();
+                outputStream.write(buffer);
+            }
+        }
 
-       try (FileInputStream fis = new FileInputStream(chunk.getChunkPath())) {
-    byte[] buffer = fis.readAllBytes();
-    outputStream.write(buffer);
-}
+        return outputStream.toByteArray();
     }
 
-    return outputStream.toByteArray();
-}
+    // Deletes all physical chunk files from disk for a given file
+    private void deleteChunksFromDisk(FileMetadata file) {
 
+        // Get all chunks belonging to this file in order
+        List<Chunk> chunks = chunkService.getChunksOrdered(file);
+
+        // Delete each chunk file from disk
+        for (Chunk chunk : chunks) {
+
+            // Create File object pointing to chunk location on disk
+            java.io.File chunkFile = new java.io.File(chunk.getChunkPath());
+
+            // Only delete if file actually exists on disk
+            if (chunkFile.exists()) {
+                chunkFile.delete();
+            }
+        }
+    }
+
+    // Returns all files belonging to a specific user as DTOs
+    public List<FileUploadResponseDTO> getFilesByUser(Long userId) {
+
+        // Validate user exists before fetching files
+        userRepository.findById(userId)
+               .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        // Map FileMetadata entities to DTOs to avoid circular reference
+        return fmdRepository.findByUserId(userId)
+                .stream()
+                .map(f -> new FileUploadResponseDTO(f.getId(), f.getFileName(), f.getFileSize()))
+                .toList();
+    }
 }

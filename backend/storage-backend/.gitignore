@@ -31,3 +31,10 @@ build/
 
 ### VS Code ###
 .vscode/
+
+*.txt
+storage/
+
+storage/node1/
+storage/node2/
+storage/node3/
