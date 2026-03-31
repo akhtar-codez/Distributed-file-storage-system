@@ -4,6 +4,7 @@ import com.distributedstorage.backend.dto.ApiResponseDTO;
 import com.distributedstorage.backend.dto.LoginRequestDTO;
 import com.distributedstorage.backend.service.AuthService;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 @RestController
 
@@ -20,7 +21,7 @@ public class AuthController {
 
     // POST /auth/login — validates credentials and returns JWT token
     @PostMapping("/login")
-    public ApiResponseDTO<String> login(@RequestBody LoginRequestDTO dto) {
+    public ApiResponseDTO<String> login(@Valid @RequestBody LoginRequestDTO dto) {
 
         // Call service to validate credentials and get token
         String token = authService.login(dto);

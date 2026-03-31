@@ -51,8 +51,15 @@ public class JwtFilter extends OncePerRequestFilter {
         // Step 3 — Extract the token by removing "Bearer " prefix
         String token = authHeader.substring(7);
 
-        // Step 4 — Extract email from token
-        String email = jwtUtil.extractEmail(token);
+        // Step 4 — Extract email from token — wrapped in try/catch for expired/invalid tokens
+        String email;
+        try {
+            email = jwtUtil.extractEmail(token);
+        } catch (Exception e) {
+            // Token is expired or invalid — skip authentication, continue as unauthenticated
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         // Step 5 — If email exists and no authentication is set yet in context
         if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
