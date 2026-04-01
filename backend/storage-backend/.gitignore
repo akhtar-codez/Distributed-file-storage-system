@@ -33,7 +33,6 @@ build/
 .vscode/
 
 *.txt
-storage/
 
 storage/node1/
 storage/node2/
