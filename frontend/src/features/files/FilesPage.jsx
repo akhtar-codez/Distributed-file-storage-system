@@ -8,19 +8,15 @@ const fileEmoji = {
 };
 
 function getEmoji(filename) {
-  const ext = filename.split(".").pop().toLowerCase();
+  const ext = (filename || "").split(".").pop().toLowerCase();
   return fileEmoji[ext] || fileEmoji.default;
 }
 
 function formatSize(bytes) {
+  if (!bytes) return "0 B";
   if (bytes < 1024) return bytes + " B";
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
   return (bytes / 1024 / 1024).toFixed(1) + " MB";
-}
-
-function formatDate(dateStr) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 export default function FilesPage() {
@@ -32,7 +28,8 @@ export default function FilesPage() {
     setLoading(true);
     try {
       const res = await getFiles();
-      setFiles(res.data);
+      const data = Array.isArray(res.data) ? res.data : [];
+      setFiles(data);
     } catch {
       setError("Failed to load files.");
     } finally {
@@ -42,18 +39,18 @@ export default function FilesPage() {
 
   useEffect(() => { fetchFiles(); }, []);
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (fileId) => {
     try {
-      await deleteFile(id);
-      setFiles(files.filter((f) => f.id !== id));
+      await deleteFile(fileId);
+      setFiles(files.filter((f) => f.fileId !== fileId));
     } catch {
       alert("Delete failed.");
     }
   };
 
-  const handleDownload = async (id, name) => {
+  const handleDownload = async (fileId, name) => {
     try {
-      const res = await downloadFile(id);
+      const res = await downloadFile(fileId);
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement("a");
       a.href = url;
@@ -108,29 +105,29 @@ export default function FilesPage() {
 
         {/* File Rows */}
         {!loading && files.map((f) => (
-          <div key={f.id} className="grid grid-cols-12 px-4 py-3 border-b border-[#F5F0E8] last:border-none items-center hover:bg-[#FAFAF8] transition-all">
+          <div key={f.fileId} className="grid grid-cols-12 px-4 py-3 border-b border-[#F5F0E8] last:border-none items-center hover:bg-[#FAFAF8] transition-all">
             <div className="col-span-5 flex items-center gap-3 min-w-0">
               <div className="w-7 h-7 rounded-lg bg-[#F5F0E8] border border-[#D6CDB8] flex items-center justify-center text-sm flex-shrink-0">
-                {getEmoji(f.fileName || f.name)}
+                {getEmoji(f.fileName)}
               </div>
-              <span className="text-xs text-[#3A3328] truncate">{f.fileName || f.name}</span>
+              <span className="text-xs text-[#3A3328] truncate">{f.fileName}</span>
             </div>
             <span className="col-span-2 text-xs text-[#9A9080] uppercase">
-              {(f.fileName || f.name).split(".").pop()}
+              {(f.fileName || "").split(".").pop()}
             </span>
             <span className="col-span-2 text-xs text-[#9A9080]">
-              {f.fileSize ? formatSize(f.fileSize) : "-"}
+              {formatSize(f.fileSize)}
             </span>
             <span className="col-span-2 text-xs text-[#9A9080]">
-              {f.uploadedAt ? formatDate(f.uploadedAt) : "-"}
+              -
             </span>
             <div className="col-span-1 flex gap-1">
               <button
-                onClick={() => handleDownload(f.id, f.fileName || f.name)}
+                onClick={() => handleDownload(f.fileId, f.fileName)}
                 className="w-6 h-6 rounded-md bg-[rgba(123,175,106,0.1)] border border-[rgba(123,175,106,0.3)] text-[#4A7A3A] text-xs flex items-center justify-center hover:bg-[rgba(123,175,106,0.2)] transition-all"
               >↓</button>
               <button
-                onClick={() => handleDelete(f.id)}
+                onClick={() => handleDelete(f.fileId)}
                 className="w-6 h-6 rounded-md bg-[rgba(232,137,106,0.1)] border border-[rgba(232,137,106,0.3)] text-[#C0562A] text-xs flex items-center justify-center hover:bg-[rgba(232,137,106,0.2)] transition-all"
               >✕</button>
             </div>
