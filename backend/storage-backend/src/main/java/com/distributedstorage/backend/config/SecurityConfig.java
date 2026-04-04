@@ -7,12 +7,14 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-    // JwtFilter — intercepts requests and validates JWT tokens
+    // JwtFilter — intercepts every request and validates JWT tokens before reaching controllers
     private final JwtFilter jwtFilter;
 
     public SecurityConfig(JwtFilter jwtFilter) {
@@ -24,26 +26,47 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
-            // Disable CSRF — not needed for REST APIs using JWT
+            // CORS — allow requests from React frontend running on localhost:5173
+            // Without this, browser blocks cross-origin requests even through Vite proxy
+            .cors(cors -> cors.configurationSource(request -> {
+                CorsConfiguration config = new CorsConfiguration();
+
+                // Allow only our frontend origin
+                config.setAllowedOrigins(List.of("http://localhost:5173"));
+
+                // Allow standard HTTP methods used by our REST API
+                config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+
+                // Allow all headers — including Authorization header for JWT
+                config.setAllowedHeaders(List.of("*"));
+
+                // Allow credentials (cookies, Authorization headers) to be sent
+                config.setAllowCredentials(true);
+
+                return config;
+            }))
+
+            // Disable CSRF — not needed for stateless REST APIs using JWT
             .csrf(csrf -> csrf.disable())
 
-            // Stateless sessions — JWT handles auth, no server-side sessions
+            // Stateless sessions — JWT handles auth, no server-side session storage
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
             // Define route authorization rules
             .authorizeHttpRequests(auth -> auth
                 // Public routes — no token required
-                .requestMatchers("/auth/**").permitAll()
-                .requestMatchers("/users/register").permitAll()
-                .requestMatchers("/").permitAll()
-                .requestMatchers("/swagger-ui/**").permitAll()
-                .requestMatchers("/v3/api-docs/**").permitAll()
-                // All other routes require authentication
+                .requestMatchers("/auth/**").permitAll()       // login endpoint
+                .requestMatchers("/users/register").permitAll() // registration endpoint
+                .requestMatchers("/").permitAll()               // root
+                .requestMatchers("/swagger-ui/**").permitAll()  // API docs UI
+                .requestMatchers("/v3/api-docs/**").permitAll() // OpenAPI spec
+                // All other routes require a valid JWT token
                 .anyRequest().authenticated()
             )
 
             // Add JWT filter before Spring's default username/password filter
+            // This ensures token validation happens first on every request
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

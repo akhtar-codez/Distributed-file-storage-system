@@ -25,11 +25,12 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(secret.getBytes());
     }
 
-    // Generates a JWT token for the given email
-    // Token contains: subject (email), issued time, expiry time
-    public String generateToken(String email) {
+    // Generates a JWT token for the given email and numeric userId
+    // Token contains: subject (email), userId claim, issued time, expiry time
+    public String generateToken(String email, Long userId) {
         return Jwts.builder()
                 .subject(email)
+                .claim("userId", userId)  // embed numeric DB id for use in frontend/upload
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expirationMs))
                 .signWith(getSigningKey())
@@ -39,6 +40,11 @@ public class JwtUtil {
     // Extracts the email (subject) from a JWT token
     public String extractEmail(String token) {
         return getClaims(token).getSubject();
+    }
+
+    // Extracts the numeric userId from the token claims
+    public Long extractUserId(String token) {
+        return getClaims(token).get("userId", Long.class);
     }
 
     // Checks if the token is still valid (not expired)

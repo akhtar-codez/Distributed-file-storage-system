@@ -39,7 +39,8 @@ public class AuthService {
             throw new RuntimeException("Invalid email or password");
         }
 
-        // Step 3 — Generate and return JWT token containing user's email
-        return jwtUtil.generateToken(user.getEmail());
+        // Step 3 — Generate JWT token with email and numeric userId as claims
+        // userId is embedded so frontend can extract it without a separate API call
+        return jwtUtil.generateToken(user.getEmail(), user.getId());
     }
 }
